@@ -9,11 +9,11 @@ The solution was done using the following:
 5. AWS ECR
 
 Download the files from the Git Repository
-* https://github.com/fordm777/fordm-flask.git
+* https://github.com/fordm777/flask-ecs.git
  
 ```bash
-git clone https://github.com/fordm777/fordm-flask.git
-cd fordm-flask
+git clone https://github.com/fordm777/flask-ecs.git
+cd flask-ecs
 ```
 
 Modify the file `terraform.tfvars` and update the variables
@@ -36,7 +36,7 @@ Apply complete! Resources: 35 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-URL = "http://fordm-flask-test-public-alb-619216788.us-east-1.elb.amazonaws.com/"
+URL = "http://flask-test-public-alb-619216788.us-east-1.elb.amazonaws.com/"
 ```
 
 ## A breif explaination of the solution
