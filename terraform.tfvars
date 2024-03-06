@@ -1,0 +1,13 @@
+app_name            = "fordm-flask-test"
+app_port            = 5000
+aws_account         = "767398047924"
+aws_region          = "us-east-1"
+aws_profile         = "terraform"
+image_tag           = "latest"
+aws_cdir            = "10.0.0.0/16"
+aws_enable_nat      = false
+aws_private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+aws_public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
+fargate_cpu         = 256
+fargate_memory      = 512
+fargate_desired_count = 1
