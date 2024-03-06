@@ -1,4 +1,4 @@
-# Hello Team at Dynatron Software #
+# Project To Create Flask app using ECS and Fargate #
 
 The solution was done using the following:
 
