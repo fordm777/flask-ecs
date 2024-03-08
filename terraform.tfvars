@@ -1,10 +1,11 @@
-app_name            = "flask-test"
+app_name            = "flask-ecs-fargate"
 app_port            = 5000
 aws_account         = "767398047924"
 aws_region          = "us-east-1"
 aws_profile         = "terraform"
 image_tag           = "latest"
 aws_cdir            = "10.10.0.0/16"
+aws_az_count        = 2
 aws_enable_nat      = false
 aws_private_subnets = ["10.10.1.0/24", "10.10.2.0/24"]
 aws_public_subnets  = ["10.10.101.0/24", "10.10.102.0/24"]

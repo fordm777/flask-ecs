@@ -4,114 +4,120 @@
 data "aws_availability_zones" "available" { state = "available" }
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.5.2"
+  version = "~> 5.5.3"
 
-  name                = var.app_name
+  name                 = var.app_name
   # Span subnetworks across 2 avalibility zones
-  azs                 = slice(data.aws_availability_zones.available.names, 0, 2) 
-  cidr                = var.aws_cdir
-  create_vpc          = true
-  create_igw          = true # Expose public subnetworks to the Internet
-  private_subnets     = var.aws_private_subnets
-  public_subnets      = var.aws_public_subnets
-  #enable_nat_gateway = var.aws_enable_nat # Hide private subnetworks behind NAT Gateway
-  #single_nat_gateway = true
+  azs                  = slice(data.aws_availability_zones.available.names, 0, 2) 
+  cidr                 = var.aws_cdir
+  create_vpc           = true
+  create_igw           = true # Expose public subnetworks to the Internet
+  private_subnets      = var.aws_private_subnets
+  public_subnets       = var.aws_public_subnets
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  #enable_nat_gateway   = var.aws_enable_nat # Hide private subnetworks behind NAT Gateway
+  #single_nat_gateway   = true
 }
 
-##
-## Create the ALB security group
-##
-resource "aws_security_group" "alb" {
-    name        = "${var.app_name}-alb-sg"
-    description = "controls access to the ALB"
-    vpc_id      = module.vpc.vpc_id
+module "vpc_endpoints" {
+source  = "terraform-aws-modules/vpc/aws//modules/vpc-endpoints"
+version = "5.5.3"
 
-    ingress {
-        protocol    = "tcp"
-        from_port   = 80
-        to_port     = 80
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-    egress {
-        protocol    = "-1"
-        from_port   = 0
-        to_port     = 0
-        cidr_blocks = ["0.0.0.0/0"]
+vpc_id = module.vpc.vpc_id
+create_security_group      = true
+security_group_name_prefix = "${var.app_name}-vpc-endpoints-"
+security_group_description = "VPC endpoint security group"
+security_group_rules = {
+    ingress_https = {
+        description = "HTTPS from VPC"
+        cidr_blocks = [module.vpc.vpc_cidr_block]
     }
 }
 
-##
-## Create the ECS task security group
-##  - restrict access to only ALB security group 
-##
-resource "aws_security_group" "ecs_tasks" {
-    name        = "${var.app_name}-ecs-tasks-sg"
-    description = "allow inbound access from the ALB only"
-    vpc_id      = module.vpc.vpc_id
+endpoints = {
+    # s3 = {
+    #     service             = "s3"
+        
+    #     private_dns_enabled = true
+    #     dns_options = {
+    #         private_dns_only_for_inbound_resolver_endpoint = false
+    #     }
+    #     policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
 
-    ingress {
-        protocol        = "tcp"
-        from_port       = var.app_port
-        to_port         = var.app_port
-        security_groups = [aws_security_group.alb.id]
-    }
-    egress {
-        protocol    = "-1"
-        from_port   = 0
-        to_port     = 0
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-    depends_on = [aws_security_group.alb]
-}
-
-##
-##  Create the ALB to access from internet
-##
-resource "aws_alb" "main" {
-    name            = "${var.app_name}-public-alb"
-    subnets         = module.vpc.public_subnets
-    security_groups = [aws_security_group.alb.id]
-}
-
-##
-## Create the Target group to point to the application port
-## 
-resource "aws_alb_target_group" "app" {
-    name        = "${var.app_name}"
-    port        = var.app_port
-    protocol    = "HTTP"
-    vpc_id      = module.vpc.vpc_id
-    target_type = "ip"
-
-    health_check {
-        healthy_threshold   = "3"
-        interval            = "30"
-        protocol            = "HTTP"
-        matcher             = "200"
-        timeout             = "3"
-        path                = "/"
-        unhealthy_threshold = "2"
-    }
-}
-
-##
-## Create listener to Redirect all traffic from the ALB to the target group
-##
-resource "aws_alb_listener" "front_end" {
-  load_balancer_arn = aws_alb.main.id
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    target_group_arn = aws_alb_target_group.app.id
-    type             = "forward"
+    #     tags = { Name = "${var.app_name}-s3-vpc-endpoint"}
+    # },
+    ecs = {
+      service             = "ecs"
+      private_dns_enabled = true
+      subnet_ids          = module.vpc.private_subnets
+      policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
+      tags = { Name = "${var.app_name}-ecs-vpc-endpoint"}
+    },
+    ecs_telemetry = {
+      create              = false
+      service             = "ecs-telemetry"
+      private_dns_enabled = true
+      subnet_ids          = module.vpc.private_subnets
+      policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
+      tags = { Name = "${var.app_name}-ecs-telemetry-vpc-endpoint"}
+    },
+    ecr_api = {
+      service             = "ecr.api"
+      private_dns_enabled = true
+      subnet_ids          = module.vpc.private_subnets
+      policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
+      tags = { Name = "${var.app_name}-ecr-api-vpc-endpoint"}
+    },
+    ecr_dkr = {
+      service             = "ecr.dkr"
+      private_dns_enabled = true
+      subnet_ids          = module.vpc.private_subnets
+      policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
+      tags = { Name = "${var.app_name}-ecr-dkr-vpc-endpoint"}
+    },
+    logs = {
+      service             = "logs"
+      private_dns_enabled = true
+      subnet_ids          = module.vpc.private_subnets
+      policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
+      tags = { Name = "${var.app_name}-logs-vpc-endpoint"}
+    },
+    secretsmanager = {
+      service             = "secretsmanager"
+      private_dns_enabled = true
+      subnet_ids          = module.vpc.private_subnets
+      policy              = data.aws_iam_policy_document.generic_endpoint_policy.json
+      tags = { Name = "${var.app_name}-secrets-mgr-vpc-endpoint"}
+    },
   }
 }
 
-##
-## Output the ALB URL
-##
-output "URL" {
-  description = "The URL to access test app"
-  value = "http://${aws_alb.main.dns_name}/"
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = flatten([module.vpc.private_route_table_ids, module.vpc.public_route_table_ids])
+  tags = { Name = "${var.app_name}-s3-vpc-endpoint"}
+}
+
+################################################################################
+# Supporting Resources
+################################################################################
+data "aws_iam_policy_document" "generic_endpoint_policy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["*"]
+    resources = ["*"]
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceVpc"
+      values = [module.vpc.vpc_id]
+    }
+  }
 }

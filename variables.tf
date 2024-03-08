@@ -20,6 +20,11 @@ variable "image_tag" {
   type        = string
 }
 
+variable "aws_az_count" {
+  description = "AWS AZ Count"
+  type        = number
+}
+
 variable "aws_account" {
   description = "AWS Account Number"
   type        = string
