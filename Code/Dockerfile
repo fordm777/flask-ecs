@@ -1,4 +1,4 @@
-FROM python:latest 
+FROM python:slim 
 
 RUN mkdir -p /opt/Code
 WORKDIR /opt/Code
